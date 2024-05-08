@@ -1,0 +1,109 @@
+name: "Test: fingerprint"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    # nothing
+
+jobs:
+
+  fingerprint-tests:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mode: ["debug", "release"]
+      fail-fast: false
+
+    steps:
+
+      - uses: actions/checkout@v4
+        with:
+          repository: omnetpp/omnetpp
+          path: omnetpp
+          ref: omnetpp-6.0.3
+
+      - uses: actions/checkout@v4
+        with:
+          repository: inet-framework/inet
+          path: inet4.5
+          ref: v4.5.2
+
+      - uses: actions/checkout@v4
+        with:
+          path: Simu5G
+
+      - run: mkdir -p /home/runner/work/ccache
+
+      - uses: actions/cache@v4
+        with:
+          path: /home/runner/work/ccache
+          key: native-${{ matrix.mode }}-ccache-${{ github.run_id }}
+          # See: https://github.com/actions/cache/blob/main/tips-and-workarounds.md#update-a-cache
+          restore-keys: native-${{ matrix.mode }}-ccache
+
+      - name: Build and test
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          echo "::group::Installing packages"
+          sudo apt update
+          sudo apt install -y --no-install-recommends git wget curl ca-certificates make \
+            ccache clang lld gdb bison flex perl doxygen graphviz libxml2-dev zlib1g-dev python3
+          echo "::endgroup::"
+
+          echo "::group::Configuring ccache"
+          export PATH=/usr/lib/ccache:$PATH
+          export CCACHE_DIR=/home/runner/work/ccache
+          echo "::endgroup::"
+
+          echo "::group::Running omnetpp setenv"
+          cd $GITHUB_WORKSPACE/omnetpp
+          cp configure.user.dist configure.user
+          . setenv -f
+          echo "::endgroup::"
+
+          echo "::group::Configuring omnetpp"
+          ./configure WITH_LIBXML=yes WITH_QTENV=no WITH_OSG=no WITH_OSGEARTH=no
+          echo "::endgroup::"
+
+          echo "::group::Compiling omnetpp"
+          make MODE=$MODE -j $(nproc) base
+          echo "::endgroup::"
+
+          echo "::group::Running inet setenv"
+          cd $GITHUB_WORKSPACE/inet4.5
+          . setenv -f
+          echo "::endgroup::"
+
+          echo "::group::Making inet makefiles"
+          make makefiles
+          echo "::endgroup::"
+
+          echo "::group::Compiling inet"
+          make MODE=$MODE -j $(nproc)
+          echo "::endgroup::"
+
+          echo "::group::Running Simu5G setenv"
+          cd $GITHUB_WORKSPACE/Simu5G
+          . setenv -f
+          echo "::endgroup::"
+
+          echo "::group::Making Simu5G makefiles"
+          make makefiles
+          echo "::endgroup::"
+
+          echo "::group::Compiling Simu5G"
+          make MODE=$MODE -j $(nproc)
+          echo "::endgroup::"
+
+          echo "::group::Running fingerprint tests"
+          cd tests/fingerprint
+          ./fingerprints ${MODE:debug:=-d}
+          echo "::endgroup::"
