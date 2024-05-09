@@ -29,16 +29,23 @@ jobs:
         with:
           repository: omnetpp/omnetpp
           path: omnetpp
+          fetch-depth: 0
           # Some (yet) unreleased changes after 6.0.3 are
           # needed for the fingerprints to match.
-          ref: omnetpp-6.x
+          ref: omnetpp-6.0.1
+
+      - run: |
+          cd omnetpp
+          git config user.email "you@example.com"
+          git config user.name "Your Name"
+          git cherry-pick 24b27d8eb3fa28de35ae9ba91da7c560aa4757f9
 
       - name: Checking out INET
         uses: actions/checkout@v4
         with:
           repository: inet-framework/inet
           path: inet4.5
-          ref: v4.5.2
+          ref: v4.5.0
 
       - name: Checking out Simu5G
         uses: actions/checkout@v4
