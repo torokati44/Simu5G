@@ -126,3 +126,8 @@ jobs:
           cd tests/fingerprint
           ./fingerprints
           echo "::endgroup::"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ matrix.mode }}
+          path: Simu5G/tests/fingerprint/results/**/*.out
