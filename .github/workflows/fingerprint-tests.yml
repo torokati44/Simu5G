@@ -117,9 +117,5 @@ jobs:
 
           echo "::group::Running fingerprint tests"
           cd tests/fingerprint
-          if [ "$MODE" = "debug" ]; then
-            ./fingerprints -d
-          else
-            ./fingerprints
-          fi
+          ./fingerprints
           echo "::endgroup::"
